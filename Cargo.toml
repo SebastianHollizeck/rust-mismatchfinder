@@ -1,0 +1,18 @@
+[package]
+name = "mismatchfinder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rust-htslib = "0.39.0"
+clap = { version = "3.2.15", features = ["derive"] }
+bio-types = "0.13.0"
+regex = "1.6.0"
+lazy_static = "1.4.0"
+slice-group-by = "0.3.0"
+itertools = "0.10.3"
+zarr = { git = "https://github.com/sci-rs/zarr" }
+rust-lapper = { version = "*", features = ["with_serde"] }
+bio = "*"
