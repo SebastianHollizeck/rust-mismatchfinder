@@ -85,7 +85,10 @@ fn main() {
     // );
 
     //create white list object
-    let bed = bamreader::filter::region::BedObject::lapper_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed"));
+    let bed = match cli.whitelist_file {
+        Some(file) => bamreader::filter::region::BedObject::lapper_from_bed(file),
+        None => bamreader::filter::region::BedObject::lapper_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
+    };
 
     let mut bam = bam::Reader::from_path(cli.bam).unwrap();
 
