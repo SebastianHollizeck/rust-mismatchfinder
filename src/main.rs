@@ -31,6 +31,10 @@ struct Options {
     #[clap(long="whitelist_bed", value_hint = ValueHint::FilePath)]
     whitelist_file: Option<PathBuf>,
 
+    /// File to read germline information from default is an echtvar file
+    #[clap(long="germline_file", value_hint = ValueHint::FilePath)]
+    germline_file: Option<PathBuf>,
+
     /// Mimimum mapping quality for a read to be considered
     #[clap(
         short = 'q',
@@ -106,9 +110,10 @@ fn main() {
         None => bamreader::filter::region::BedObject::lapper_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
     };
 
-    let mut gnomad = bamreader::filter::germline::GermlineResource::load_echtvars_file(
-        "/Volumes/bioinf/data/reference/dawson_labs/gnomad/3/echtvar/gnomad.v3.1.2.echtvar.v2.zip",
-    );
+    let mut gnomad = match cli.germline_file {
+        Some(file) => bamreader::filter::germline::GermlineResource::load_echtvars_file(file.to_str().unwrap()),
+        None => bamreader::filter::germline::GermlineResource::load_echtvars_file("/Volumes/bioinf/data/reference/dawson_labs/gnomad/3/echtvar/gnomad.v3.1.2.echtvar.v2.zip"),
+    };
 
     // let backend = match gnomad.get_backend_mut() {
     //     bamreader::filter::germline::GermlineBackend::Echt(v) => {
