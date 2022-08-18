@@ -14,5 +14,6 @@ lazy_static = "1.4.0"
 slice-group-by = "0.3.0"
 itertools = "0.10.3"
 zarr = { git = "https://github.com/sci-rs/zarr" }
+echtvar = { git = "https://github.com/brentp/echtvar" }
 rust-lapper = { version = "*", features = ["with_serde"] }
 bio = "*"
