@@ -351,30 +351,37 @@ fn main() {
     // }
 
     for bam in cli.bams {
+        //prepare file names
         let base = bam.file_stem().unwrap();
         let mut bam = bam::Reader::from_path(&bam).unwrap();
-
-        let mut mismatches =
-            mismatchfinder::bamreader::find_mismatches(&mut bam, &bed, &fragment_length_intervals);
-        println!("Found {} mismatches ", mismatches.len());
-
-        gnomad.filter_germline_cooccurance(&mut mismatches);
-
-        println!("Found {} somatic mismatches", mismatches.len());
-
-        let tsv_file = cli
-            .output_folder
-            .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
-        match output::write_mismatches(&mismatches, tsv_file) {
-            Err(_) => println!("Could not write mismatch file"),
-            Ok(_) => {}
-        }
         let vcf_file = cli
             .output_folder
             .join(format!("{}_bamsites.vcf", base.to_str().unwrap()));
-        match output::write_vcf(&mismatches, vcf_file, true, true) {
-            Err(_) => println!("Could not write mismatch file"),
-            Ok(_) => {}
+        let tsv_file = cli
+            .output_folder
+            .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
+
+        if !vcf_file.exists() {
+            let mut mismatches = mismatchfinder::bamreader::find_mismatches(
+                &mut bam,
+                &bed,
+                &fragment_length_intervals,
+            );
+            println!("Found {} mismatches ", mismatches.len());
+
+            gnomad.filter_germline_cooccurance(&mut mismatches);
+
+            println!("Found {} somatic mismatches", mismatches.len());
+
+            match output::write_mismatches(&mismatches, tsv_file) {
+                Err(_) => println!("Could not write mismatch file"),
+                Ok(_) => {}
+            }
+
+            match output::write_vcf(&mismatches, vcf_file, true, true) {
+                Err(_) => println!("Could not write mismatch file"),
+                Ok(_) => {}
+            }
         }
     }
 }
