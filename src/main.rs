@@ -1,5 +1,6 @@
 use std::{
     fmt::format,
+    fs,
     ops::{Range, RangeInclusive},
     path::PathBuf,
 };
@@ -11,12 +12,16 @@ use mismatchfinder::{
 };
 use rust_htslib::bam;
 
+/// Reference to be used for analysis. (should only be relevant for crams)
+// #[clap(short='T', long="reference", value_hint = ValueHint::FilePath)]
+// reference_file: PathBuf,
+
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Options {
-    /// Reference to be used for analysis. (should only be relevant for crams)
-    // #[clap(short='T', long="reference", value_hint = ValueHint::FilePath)]
-    // reference_file: PathBuf,
+    /// Output folder to write files to
+    #[clap(short='o', long="output", value_hint = ValueHint::FilePath)]
+    output_folder: PathBuf,
 
     /// Bed file for genomic regions to ignore in the analysis. White list bed file regions overwrite black list regions
     #[clap(long="blacklist_bed", value_hint = ValueHint::FilePath)]
@@ -83,6 +88,13 @@ struct Options {
 
 fn main() {
     let cli = Options::parse();
+
+    //check if we can write to the output folder, or if it doesnt exist yet, if we can create it
+    match fs::create_dir_all(&cli.output_folder) {
+        Ok(_) => { // we are happy and dont worry
+        }
+        Err(e) => panic!("Couldnt open output folder: {}", e),
+    };
 
     // let gl_filter = bamreader::filter::germline::ZarrStorage::load_zarr_path(
     //     "/Volumes/bioinf/data/reference/dawson_labs/gnomad/3/zarr/chr1",
@@ -345,20 +357,17 @@ fn main() {
 
         println!("Found {} somatic mismatches", mismatches.len());
 
-        match output::write_mismatches(
-            &mismatches,
-            PathBuf::from(format!("{}_bamsites.tsv", base.to_str().unwrap())),
-        ) {
+        let tsv_file = cli
+            .output_folder
+            .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
+        match output::write_mismatches(&mismatches, tsv_file) {
             Err(_) => println!("Could not write mismatch file"),
             Ok(_) => {}
         }
-
-        match output::write_vcf(
-            &mismatches,
-            PathBuf::from(format!("{}_bamsites.tsv", base.to_str().unwrap())),
-            true,
-            true,
-        ) {
+        let vcf_file = cli
+            .output_folder
+            .join(format!("{}_bamsites.vcf", base.to_str().unwrap()));
+        match output::write_vcf(&mismatches, vcf_file, true, true) {
             Err(_) => println!("Could not write mismatch file"),
             Ok(_) => {}
         }
