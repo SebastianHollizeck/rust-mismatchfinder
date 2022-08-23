@@ -56,6 +56,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "bgzip"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b24c7834de214cf8da3054a155602eb727eba3bb4bbd07f3114f337421c15acf"
+dependencies = [
+ "flate2",
+ "thiserror",
+]
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -820,16 +830,17 @@ dependencies = [
 name = "mismatchfinder"
 version = "0.1.0"
 dependencies = [
+ "bgzip",
  "bio",
  "bio-types",
  "clap 3.2.15",
  "echtvar",
+ "flate2",
  "itertools 0.10.3",
  "lazy_static",
  "regex",
  "rust-htslib 0.39.5",
  "rust-lapper",
- "slice-group-by",
  "zarr",
 ]
 
@@ -1338,12 +1349,6 @@ dependencies = [
  "num-traits",
  "paste",
 ]
-
-[[package]]
-name = "slice-group-by"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03b634d87b960ab1a38c4fe143b508576f075e7c978bfad18217645ebfdfa2ec"
 
 [[package]]
 name = "smallvec"

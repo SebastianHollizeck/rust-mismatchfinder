@@ -2,11 +2,9 @@ pub struct Fragment {
     read1: GappedRead,
     read2: GappedRead,
     chrom: String,
-    start: i64,
-    end: i64,
     single_end: bool,
     insertions: Vec<Mismatch>,
-    // we stroe this so we know if we only need to look at read1 instead of both
+    // we store this so we know if we only need to look at read1 instead of both
     only_overlap: bool,
 }
 
@@ -207,8 +205,8 @@ impl Fragment {
             read1,
             read2,
             chrom: seqname.to_string(),
-            start: min(read1_end, read2_end),
-            end: max(read1_end, read2_end),
+            // start: min(read1_end, read2_end),
+            // end: max(read1_end, read2_end),
             single_end: false,
             insertions: fragment_ins.into_values().collect(),
             only_overlap: only_overlap,

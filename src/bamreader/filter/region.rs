@@ -1,14 +1,14 @@
 //filter based on a bed file
 
-use std::{collections::HashMap, hash::Hash, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
-use bio::io::bed;
+use bio::{data_structures::interval_tree::IntervalTree, io::bed};
 use rust_lapper::{Interval, Lapper};
 
 enum Backend {
     // the lapper backend uses bool as a value, as it is the smallest and we dont care about the value
     LapperBackend(HashMap<String, Lapper<usize, bool>>),
-    IntervalTreeBackend,
+    IntervalTreeBackend(HashMap<String, IntervalTree<usize, bool>>),
 }
 
 pub struct BedObject {
@@ -29,7 +29,14 @@ impl BedObject {
                     None => false,
                 }
             }
-            Backend::IntervalTreeBackend => todo!("interval tree not supported yet"),
+            Backend::IntervalTreeBackend(core) => {
+                let interval = core.get(chr);
+
+                match interval {
+                    Some(i) => i.find(query_start..query_end).next().is_some(),
+                    None => false,
+                }
+            }
         }
     }
 
@@ -43,7 +50,7 @@ impl BedObject {
         for record in bed.records() {
             let record = record.unwrap();
 
-            let mut int_list = intervals
+            let int_list = intervals
                 .entry(record.chrom().to_string())
                 .or_insert(Vec::new());
             int_list.push(Interval {
@@ -68,6 +75,25 @@ impl BedObject {
     }
 
     pub fn interval_tree_from_bed(bed: PathBuf) -> BedObject {
-        todo!("not yet implemented");
+        let mut bed = bed::Reader::from_file(bed).expect("Could not open bed file");
+
+        // we build one interval tree per chromosome
+        let mut intervals: HashMap<String, IntervalTree<usize, bool>> = HashMap::with_capacity(50);
+
+        for record in bed.records() {
+            let record = record.unwrap();
+
+            //get the tree already in the hashmap, or add a new one
+            let int_tree = intervals
+                .entry(record.chrom().to_string())
+                .or_insert(IntervalTree::new());
+
+            // add the actual interval from the bed
+            int_tree.insert((record.start() as usize)..(record.end() as usize), true);
+        }
+
+        return BedObject {
+            backend: Backend::IntervalTreeBackend(intervals),
+        };
     }
 }

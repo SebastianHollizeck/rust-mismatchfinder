@@ -1,12 +1,15 @@
-use std::{collections::BTreeMap, fs::File, io::Write, path::PathBuf};
-
 use crate::bamreader::mismatch::Mismatch;
+use bgzip::BGZFWriter;
+use std::io::Write;
+use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
-const VCF_HEADER: &str = "##fileformat=VCFv4.2
+const VCF_HEADER: &[u8] = "##fileformat=VCFv4.2
 ##source==MisMatchFinder
 ##FILTER=<ID=PASS,Description=\"Mismatch of high quality\">
 ##INFO=<ID=MULTI,Number=1,Type=Integer,Description=\"Number of reads supporting the mismatch\">
-#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO";
+##INFO=<ID=SOMATIC,Number=1,Type=String,Description=\"This variant is somatic after germline check\">
+#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+    .as_bytes();
 
 pub fn write_vcf(
     mismatches: &BTreeMap<Mismatch, usize>,
@@ -16,11 +19,13 @@ pub fn write_vcf(
 ) -> std::io::Result<()> {
     let mut vcf_fh = File::create(file).expect("Could not open file to write vcf");
 
+    let mut writer = BGZFWriter::new(&mut vcf_fh, flate2::Compression::default());
+
     //write the header here
-    writeln!(vcf_fh, "{VCF_HEADER}")?;
+    writer.write_all(VCF_HEADER)?;
 
     for (mm, count) in mismatches {
-        match mm.typ {
+        let line = match mm.typ {
             crate::bamreader::mismatch::MismatchType::SBS => {
                 //we only write this if requested
                 if include_small_vars {
@@ -33,10 +38,16 @@ pub fn write_vcf(
                         count,
                     );
 
+                    //finish up the line
                     if somatic {
-                        line += ";SOMATIC";
+                        line += ";SOMATIC\n";
+                    } else {
+                        line += "\n";
                     }
-                    writeln!(vcf_fh, "{line}")?;
+
+                    Some(line)
+                } else {
+                    None
                 }
             }
             crate::bamreader::mismatch::MismatchType::DBS => {
@@ -51,10 +62,15 @@ pub fn write_vcf(
                         count,
                     );
 
+                    //finish up the line
                     if somatic {
-                        line += ";SOMATIC";
+                        line += ";SOMATIC\n";
+                    } else {
+                        line += "\n";
                     }
-                    writeln!(vcf_fh, "{line}")?;
+                    Some(line)
+                } else {
+                    None
                 }
             }
             crate::bamreader::mismatch::MismatchType::INS
@@ -69,12 +85,19 @@ pub fn write_vcf(
                     count,
                 );
 
+                //finish up the line
                 if somatic {
-                    line += ";SOMATIC";
+                    line += ";SOMATIC\n";
+                } else {
+                    line += "\n";
                 }
-                writeln!(vcf_fh, "{line}")?;
+                Some(line)
             }
+        };
+        if let Some(l) = line {
+            writer.write_all(l.as_bytes())?;
         }
     }
+    writer.close()?;
     return Ok(());
 }

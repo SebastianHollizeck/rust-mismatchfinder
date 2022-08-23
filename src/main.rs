@@ -63,7 +63,7 @@ struct Options {
 
     /// Maximum mismatches we allow in the read
     #[clap(
-        long = "maximum_mismatches_per_read",
+        long = "maximum_edit_distance_per_read",
         value_parser,
         default_value_t = 7
     )]
@@ -71,7 +71,7 @@ struct Options {
 
     /// Mimimum mismatches we require in the read
     #[clap(
-        long = "minimum_mismatches_per_read",
+        long = "minimum_edit_distance_per_read",
         value_parser,
         default_value_t = 1
     )]
@@ -104,11 +104,28 @@ fn main() {
     //     "/Volumes/bioinf/data/reference/dawson_labs/gnomad/3/zarr/chr1",
     // );
 
+    // make this an option with lapper being default
+    let lapper = true;
     //create white list object
-    let bed = match cli.whitelist_file {
+    let bed;
+    if lapper {
+        // obviously this heavily depends on the network speed etc, but this was run multiple time to ensure a representative sampling
+        // real	11m30.015s, 11m50.762s, 12m14.666s, 11m22.795s
+        // user	8m1.104s, 8m3.983s, 7m57.696s, 7m35.625s
+        // sys	0m38.480s, 0m42.985s, 0m38.536s, 0m26.196s
+        bed = match cli.whitelist_file {
         Some(file) => bamreader::filter::region::BedObject::lapper_from_bed(file),
         None => bamreader::filter::region::BedObject::lapper_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
     };
+    } else {
+        // real	12m18.631s, 11m57.539s, 12m48.091s, 13m0.463s, 12m13.922s
+        // user	8m17.179s, 7m54.323s, 8m21.796s, 8m15.832s, 8m2.991s
+        // sys	0m52.488s, 0m32.826s, 0m42.453s, 0m47.496s, 0m34.951s
+        bed = match cli.whitelist_file {
+            Some(file) => bamreader::filter::region::BedObject::interval_tree_from_bed(file),
+            None => bamreader::filter::region::BedObject::interval_tree_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
+        };
+    }
 
     let mut gnomad = match cli.germline_file {
         Some(file) => bamreader::filter::germline::GermlineResource::load_echtvars_file(file.to_str().unwrap()),
@@ -356,7 +373,7 @@ fn main() {
         let mut bam = bam::Reader::from_path(&bam).unwrap();
         let vcf_file = cli
             .output_folder
-            .join(format!("{}_bamsites.vcf", base.to_str().unwrap()));
+            .join(format!("{}_bamsites.vcf.gz", base.to_str().unwrap()));
         let tsv_file = cli
             .output_folder
             .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
@@ -369,6 +386,7 @@ fn main() {
             );
             println!("Found {} mismatches ", mismatches.len());
 
+            // we could potentially only annotate the germline status, but then we still have to write about a million germline vars
             gnomad.filter_germline_cooccurance(&mut mismatches);
 
             println!("Found {} somatic mismatches", mismatches.len());

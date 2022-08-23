@@ -11,9 +11,10 @@ clap = { version = "3.2.15", features = ["derive"] }
 bio-types = "0.13.0"
 regex = "1.6.0"
 lazy_static = "1.4.0"
-slice-group-by = "0.3.0"
 itertools = "0.10.3"
 zarr = { git = "https://github.com/sci-rs/zarr" }
 echtvar = { git = "https://github.com/brentp/echtvar" }
 rust-lapper = { version = "*", features = ["with_serde"] }
 bio = "*"
+bgzip = "0.2.1"
+flate2 = "1.0"

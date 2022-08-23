@@ -1,20 +1,18 @@
 use std::{
     cmp::{max, min},
     collections::{BTreeMap, HashMap},
-    hash::Hash,
     ops::RangeInclusive,
-    process::exit,
 };
 
 use rust_htslib::bam::{self, record::Aux, Read, Record};
 
 use crate::bamreader::{
-    cigar::{parse_cigar_str, GappedRead},
+    cigar::{parse_cigar_str},
     fragment::Fragment,
 };
 
 use self::{
-    filter::{germline::GermlineResource, region::BedObject},
+    filter::{region::BedObject},
     mismatch::Mismatch,
 };
 
@@ -65,7 +63,7 @@ pub fn find_mismatches(
 
         //println!("Read name: {qname}");
         counter += 1;
-        if counter % 100000 == 0 {
+        if counter % 500000 == 0 {
             println!(
                     "Read through {counter} reads - last position: {}:{}",
                     last_chr ,

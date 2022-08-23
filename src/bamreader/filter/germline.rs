@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 
 use echtvar_lib::kmer16;
 // function to filter mismatches with a germline resource
-use zarr::{prelude::*, storage::ListableStore};
+// use zarr::{prelude::*, storage::ListableStore};
 
 use crate::bamreader::mismatch::Mismatch;
 use crate::bamreader::mismatch::MismatchType;
@@ -14,13 +13,13 @@ use echtvar_lib::var32;
 pub struct ZarrStorage {}
 
 impl ZarrStorage {
-    pub fn filter(&self, input: Vec<Mismatch>) {}
+    pub fn filter(&self, _input: Vec<Mismatch>) {}
 
     pub fn load_zarr_path(root: &str) {
         println!("Trying to open folder {root}");
         todo!("zarr is not su&pported in rust yet");
-        let root = FilesystemHierarchy::open(root).expect("Could not open zarr root");
-        println!("{:?}", root.list_dir("/chr").unwrap());
+        // let root = FilesystemHierarchy::open(root).expect("Could not open zarr root");
+        // println!("{:?}", root.list_dir("/chr").unwrap());
     }
 }
 
@@ -152,7 +151,7 @@ impl GermlineResource {
                 }
                 //then we encode the variant and then we search for it
             }
-            GermlineBackend::Zarr(v) => todo!("Not yet implemented"),
+            GermlineBackend::Zarr(_v) => todo!("Not yet implemented"),
         }
     }
 
