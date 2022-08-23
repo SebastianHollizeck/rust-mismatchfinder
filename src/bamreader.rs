@@ -4,6 +4,8 @@ use std::{
     ops::RangeInclusive,
 };
 
+use log::{debug, info, warn};
+
 use rust_htslib::bam::{self, record::Aux, Read, Record};
 
 use crate::bamreader::{
@@ -64,7 +66,7 @@ pub fn find_mismatches(
         //println!("Read name: {qname}");
         counter += 1;
         if counter % 500000 == 0 {
-            println!(
+            info!(
                     "Read through {counter} reads - last position: {}:{}",
                     last_chr ,
                     last_pos
@@ -85,6 +87,7 @@ pub fn find_mismatches(
 
             // println!("r1 {:?} ({counter})", std::str::from_utf8(mate.qname()),);
             //println!("r2 {:?}({counter})", record,);
+            debug!("Working on read: {} and {}", std::str::from_utf8(record.qname()).unwrap(), std::str::from_utf8(mate.qname()).unwrap());
 
             // we check all the quality of the read AND a few for the mate, because we need to be sure we have a proper
             // pair 
@@ -216,9 +219,9 @@ pub fn find_mismatches(
 
     // if we have done everything correctly, we should have no reads in the cache anymore
     if read_cache.len() != 0 {
-        println!("Read cache contained unpaired read at the end of the analysis, this shouldnt happen with a well formed bam");
+        warn!("Read cache contained unpaired read at the end of the analysis, this shouldnt happen with a well formed bam");
         for (qname, _) in read_cache {
-            println!("{qname}")
+            warn!("{qname}")
         }
     }
 

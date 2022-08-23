@@ -93,6 +93,8 @@ struct Options {
 fn main() {
     let cli = Options::parse();
 
+    env_logger::init();
+
     //check if we can write to the output folder, or if it doesnt exist yet, if we can create it
     match fs::create_dir_all(&cli.output_folder) {
         Ok(_) => { // we are happy and dont worry
