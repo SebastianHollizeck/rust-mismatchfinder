@@ -192,6 +192,8 @@ pub fn find_mismatches(
                             None => Vec::new(),
                         };
 
+                        debug!("Found {} mismatches in fragment", mismatches.len());
+
                         for mm in mismatches {
                             // add the mismatch to the storage if it wasnt already
                             let val = mismatch_store.entry(mm).or_insert(0);
