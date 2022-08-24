@@ -85,6 +85,10 @@ struct Options {
     #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
     only_overlaps: bool,
 
+    /// overwrite previous results
+    #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
+    overwrite: bool,
+
     /// Bams to analyse
     #[clap(value_hint = ValueHint::FilePath, action = clap::ArgAction::Append, multiple_values=true)]
     bams: Vec<PathBuf>,
@@ -380,7 +384,7 @@ fn main() {
             .output_folder
             .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
 
-        if !vcf_file.exists() {
+        if !vcf_file.exists() || cli.overwrite {
             let mut mismatches = mismatchfinder::bamreader::find_mismatches(
                 &mut bam,
                 &bed,

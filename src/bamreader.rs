@@ -210,6 +210,8 @@ pub fn find_mismatches(
             } else {
                 // println!("Low quality");
             }
+
+            debug!("Done with read {}", &qname);
         // we dont check if the read is mapped here, so we get mapped and unmapped pairs as well
         } else if !(record.is_supplementary()
             || record.is_secondary()) {
