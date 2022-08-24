@@ -11,6 +11,7 @@ use mismatchfinder::{
     output,
 };
 use rust_htslib::bam;
+use simple_logger::SimpleLogger;
 
 /// Reference to be used for analysis. (should only be relevant for crams)
 // #[clap(short='T', long="reference", value_hint = ValueHint::FilePath)]
@@ -97,7 +98,11 @@ struct Options {
 fn main() {
     let cli = Options::parse();
 
-    env_logger::init();
+    SimpleLogger::new()
+        .with_level(log::LevelFilter::Info)
+        .env()
+        .init()
+        .unwrap();
 
     //check if we can write to the output folder, or if it doesnt exist yet, if we can create it
     match fs::create_dir_all(&cli.output_folder) {
