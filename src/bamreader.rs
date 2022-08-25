@@ -222,10 +222,15 @@ pub fn find_mismatches(
     }
 
     // if we have done everything correctly, we should have no reads in the cache anymore
+    let mut break_out = 10;
     if read_cache.len() != 0 {
         warn!("Read cache contained unpaired read at the end of the analysis, this shouldnt happen with a well formed bam");
         for (qname, _) in read_cache {
-            warn!("{qname}")
+            warn!("{qname}");
+            if break_out == 0{
+                break;
+            }
+            break_out-=1;
         }
     }
 
