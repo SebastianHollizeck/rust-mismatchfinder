@@ -279,11 +279,13 @@ pub fn find_mismatches(
 
     // if we have done everything correctly, we should have no reads in the cache anymore
     let mut break_out = 10;
-    if read_cache.len() != 0 {
+    let un_paired_reads= read_cache.len();
+    if un_paired_reads != 0 {
         warn!("Read cache contained unpaired read at the end of the analysis, this shouldnt happen with a well formed bam");
         for (qname, _) in read_cache {
             warn!("{qname}");
             if break_out == 0{
+                warn!("... and {} more", un_paired_reads-break_out);
                 break;
             }
             break_out-=1;
