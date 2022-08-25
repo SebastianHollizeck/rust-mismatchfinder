@@ -1,5 +1,6 @@
 // We generate a gapped read how it is aligned to the reference, without insertions
 // but the deletions will be shown as '-' in the sequence
+#[derive(Clone)]
 pub struct GappedRead {
     gapped_seq: Vec<u8>,
     gapped_qual: Vec<u8>,
