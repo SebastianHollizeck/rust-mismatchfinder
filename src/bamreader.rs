@@ -6,7 +6,7 @@ use std::{
 
 use log::{debug, info, warn};
 
-use rust_htslib::bam::{self, record::Aux, Read, Record};
+use rust_htslib::bam::{self, record::{Aux}, Read, Record};
 
 use crate::bamreader::{
     cigar::{parse_cigar_str},
@@ -28,8 +28,9 @@ pub fn find_mismatches(
     white_list: &BedObject,
     fragment_length_intervals: &Vec<RangeInclusive<i64>>,
 ) -> BTreeMap<Mismatch, usize> {
-    //we create a read cache and set the initial capacity to 10k to reduce the reallocation operations
-    let mut read_cache: HashMap<String, Record> = HashMap::with_capacity(10000);
+
+        //store all mismatches found and how often they were found (we also know its going to be a big hash)
+        let mut mismatch_store: BTreeMap<Mismatch, usize> = BTreeMap::new();
 
     //get the header for the mapping of tid to chromosome name
     let mut tid_map: HashMap<i32, String> = HashMap::new();
@@ -45,12 +46,18 @@ pub fn find_mismatches(
         }
     }
 
-    //store all mismatches found and how often they were found (we also know its going to be a big hash)
-    let mut mismatch_store: BTreeMap<Mismatch, usize> = BTreeMap::new();
+
 
     let mut counter = 0;
     let mut last_chr = &String::from("*");
     let mut last_pos = -1;
+
+
+
+    //we create a read cache and set the initial capacity to 10k to reduce the reallocation operations
+    let mut read_cache: HashMap<String, Record> = HashMap::with_capacity(10000);
+
+
     for r in bam.records() {
         let record = r.unwrap();
 
@@ -60,6 +67,9 @@ pub fn find_mismatches(
         let min_bq = 65;
         let min_avg_bq = 25.;
         let min_mq = 20;
+
+        let min_edit_distance=0;
+        let max_edit_distance=15;
 
         let qname = std::str::from_utf8(record.qname()).unwrap().to_owned();
 
@@ -75,7 +85,75 @@ pub fn find_mismatches(
         
         }
 
-        if read_cache.contains_key(&qname) {
+        if !record.is_paired(){
+
+            // we skipp anything that isnt high quality
+            if record.is_secondary() 
+            || record.is_supplementary() 
+            || record.is_unmapped() 
+            || record.is_duplicate() 
+            || record.is_quality_check_failed() 
+            || record.mapq() < min_mq {
+                continue;
+            }
+
+            debug!("Working on single end read: {} ", std::str::from_utf8(record.qname()).unwrap());
+
+            // get the chromosome the record is on
+            let chrom = tid_map.get(&record.tid()).unwrap();
+            last_chr = chrom;
+            last_pos = record.pos();
+
+            let edit_dist = get_edit_distance(&record);
+            if  edit_dist > min_edit_distance && edit_dist > max_edit_distance {
+
+                // we cant really do a fragment size check here, so we have to check the read length instead
+                let frag_size = record.seq_len() as i64;
+                // but we can only really estimate it
+                let mut skip = true;
+                for ivl in fragment_length_intervals {
+                    if ivl.contains(&frag_size) {
+                        //we are good here
+                        skip = false;
+                    }
+                }
+                if skip {
+                    continue;
+                }
+
+                //then we check for the average base quality of the read
+                if Fragment::average(record.qual()) < min_avg_bq {
+                    continue;
+                }
+
+                // get only the aligned part of the read, without insertions
+                let read = parse_cigar_str(&record, chrom);
+
+                //check if the read is in the whitelist
+                if white_list.has_overlap(
+                    chrom,
+                    read.start() as usize,
+                    read.end() as usize,
+                ) {
+                    let frag = Fragment::make_se_fragment(read, chrom);
+                    let mismatches = frag.get_mismatches(min_bq);
+
+                    debug!("Found {} mismatches in fragment", mismatches.len());
+
+                        for mm in mismatches {
+                            // add the mismatch to the storage if it wasnt already
+                            let val = mismatch_store.entry(mm).or_insert(0);
+                            //and add one to the count
+                            *val +=1;
+                            
+                        }
+
+                }
+
+            }
+
+
+        }else if read_cache.contains_key(&qname){
 
             // we have to skip out of this if the read is a secondary (before we get the read from the cache)
             if record.is_secondary() || record.is_supplementary(){
@@ -85,9 +163,7 @@ pub fn find_mismatches(
             // get and delete the record from the cache, because we dont want to bloat the storage
             let mate = read_cache.remove(&qname).unwrap();
 
-            // println!("r1 {:?} ({counter})", std::str::from_utf8(mate.qname()),);
-            //println!("r2 {:?}({counter})", record,);
-            debug!("Working on read: {} and {}", std::str::from_utf8(record.qname()).unwrap(), std::str::from_utf8(mate.qname()).unwrap());
+            debug!("Working on paired end read: {} ", std::str::from_utf8(record.qname()).unwrap());
 
             // we check all the quality of the read AND a few for the mate, because we need to be sure we have a proper
             // pair 
@@ -117,28 +193,8 @@ pub fn find_mismatches(
 
                 // we check if the reads actually have any changes (edit distance), this contains both mismatches and
                 // insertions or deletions
-                let read1_edit = match record.aux(b"NM") {
-                    // while technically the thing should only be I8, we accept other integer types as well
-                    Ok(Aux::I8(nm_i)) => nm_i,
-                    Ok(Aux::I16(nm_i)) => nm_i as i8,
-                    Ok(Aux::I32(nm_i)) => nm_i as i8,
-                    Ok(Aux::U8(nm_i)) => nm_i as i8,
-                    Ok(Aux::U16(nm_i)) => nm_i as i8,
-                    Ok(Aux::U32(nm_i)) => nm_i as i8,
-                    // we just return the cigar ops necessary to make the read
-                    _ => 0,
-                };
-
-                // same as above, but with read2
-                let read2_edit = match mate.aux(b"NM") {
-                    Ok(Aux::I8(nm_i)) => nm_i,
-                    Ok(Aux::I16(nm_i)) => nm_i as i8,
-                    Ok(Aux::I32(nm_i)) => nm_i as i8,
-                    Ok(Aux::U8(nm_i)) => nm_i as i8,
-                    Ok(Aux::U16(nm_i)) => nm_i as i8,
-                    Ok(Aux::U32(nm_i)) => nm_i as i8,
-                    _ => 0,
-                };
+                let read1_edit = get_edit_distance(&record);
+                let read2_edit = get_edit_distance(&mate);
 
 
 
@@ -235,4 +291,18 @@ pub fn find_mismatches(
     }
 
     return mismatch_store;
+}
+
+fn get_edit_distance(read: &Record) -> i8{
+    match read.aux(b"NM") {
+        // while technically the thing should only be I8, we accept other integer types as well
+        Ok(Aux::I8(nm_i)) => nm_i,
+        Ok(Aux::I16(nm_i)) => nm_i as i8,
+        Ok(Aux::I32(nm_i)) => nm_i as i8,
+        Ok(Aux::U8(nm_i)) => nm_i as i8,
+        Ok(Aux::U16(nm_i)) => nm_i as i8,
+        Ok(Aux::U32(nm_i)) => nm_i as i8,
+        // we just return the cigar ops necessary to make the read
+        _ => 0,
+    }
 }
