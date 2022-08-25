@@ -1,8 +1,7 @@
+#[derive(Clone)]
 pub struct Fragment {
-    read1: GappedRead,
-    read2: GappedRead,
+    reads: Vec<GappedRead>,
     chrom: String,
-    single_end: bool,
     insertions: Vec<Mismatch>,
     // we store this so we know if we only need to look at read1 instead of both
     only_overlap: bool,
@@ -20,13 +19,13 @@ use super::cigar::GappedRead;
 use super::mismatch::Mismatch;
 
 impl Fragment {
-    pub fn get_read1(&self) -> &GappedRead {
-        &self.read1
-    }
+    // pub fn get_read1(&self) -> &GappedRead {
+    //     &self.read1
+    // }
 
-    pub fn get_read2(&self) -> &GappedRead {
-        &self.read2
-    }
+    // pub fn get_read2(&self) -> &GappedRead {
+    //     &self.read2
+    // }
 
     pub fn make_fragment(
         mut read1: GappedRead,
@@ -202,29 +201,34 @@ impl Fragment {
         }
 
         return Some(Fragment {
-            read1,
-            read2,
+            reads: Vec::from([read1, read2]),
             chrom: seqname.to_string(),
             // start: min(read1_end, read2_end),
             // end: max(read1_end, read2_end),
-            single_end: false,
             insertions: fragment_ins.into_values().collect(),
             only_overlap: only_overlap,
         });
     }
 
+    pub fn make_se_fragment(read: GappedRead, chrom: &String) -> Self {
+        return Fragment {
+            insertions: read.get_insertions().to_vec(),
+            reads: Vec::from([read]),
+            chrom: chrom.to_string(),
+            only_overlap: false,
+        };
+    }
+
     pub fn get_mismatches(&self, min_base_qual: u8) -> Vec<Mismatch> {
         let mut ret: Vec<Mismatch> = Vec::new();
 
-        let reads_to_check;
-        // if we only trust the overlap, or have a single end read library, we only look at read1
-        if self.single_end || self.only_overlap {
-            reads_to_check = Vec::from([&self.read1]);
-        } else {
-            reads_to_check = Vec::from([&self.read1, &self.read2]);
-        }
+        for (i, read) in self.reads.iter().enumerate() {
+            //if we only want the overlap, we can just skip read 2
+            if self.only_overlap && i > 0 {
+                break;
+            }
+            //otherwise we look at mutations
 
-        for read in reads_to_check {
             let md = read.get_md_str();
             //if we have a full integer as MD string we can skip, because we have no changes
             let md_parse: Result<i64, _> = md.parse();
