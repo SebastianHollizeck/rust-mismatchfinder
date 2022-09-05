@@ -425,9 +425,9 @@ fn main() {
                 // we could potentially only annotate the germline status,
                 // but then we still have to write about a million germline vars
                 g.filter_germline_cooccurance(&mut mismatches);
-            }
 
-            info!("Found {} somatic mismatches", mismatches.len());
+                info!("Found {} somatic mismatches", mismatches.len());
+            }
 
             match output::write_mismatches(&mismatches, tsv_file) {
                 Err(_) => error!("Could not write mismatch file"),
