@@ -40,7 +40,7 @@ impl BedObject {
         }
     }
 
-    pub fn lapper_from_bed(bed: PathBuf) -> BedObject {
+    pub fn lapper_from_bed(bed: PathBuf) -> Self {
         let mut bed = bed::Reader::from_file(bed).expect("Could not open bed file");
 
         // we could assume that the bed file is sorted, but we never know, so we instead store the data per chrsomosome

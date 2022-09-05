@@ -25,7 +25,7 @@ pub mod mismatch;
 
 pub fn find_mismatches(
     bam: &mut bam::Reader,
-    white_list: &BedObject,
+    white_list: &Option<BedObject>,
     fragment_length_intervals: &Vec<RangeInclusive<i64>>,
 ) -> BTreeMap<Mismatch, usize> {
 
@@ -129,12 +129,18 @@ pub fn find_mismatches(
                 // get only the aligned part of the read, without insertions
                 let read = parse_cigar_str(&record, chrom);
 
-                //check if the read is in the whitelist
-                if white_list.has_overlap(
-                    chrom,
-                    read.start() as usize,
-                    read.end() as usize,
-                ) {
+                //check if the read is in the whitelist or if no white list was supplied 
+                let analyse = match white_list{
+                    Some(wl) => wl.has_overlap(
+                        chrom,
+                        read.start() as usize,
+                        read.end() as usize,
+                    ),
+                    None => true,
+
+                };
+                
+                if analyse {
                     let frag = Fragment::make_se_fragment(read, chrom);
                     let mismatches = frag.get_mismatches(min_bq);
 
@@ -198,7 +204,7 @@ pub fn find_mismatches(
 
 
 
-                if read1_edit > 0 || read2_edit > 0 {
+                if (read1_edit >= min_edit_distance && read1_edit <= max_edit_distance) || (read2_edit >= 0 && read2_edit <= max_edit_distance) {
                     //now we check if the fragment has the right size
                     let frag_size = record.insert_size().abs();
                     // println!("Found fragment of size {frag_size}");
@@ -225,13 +231,18 @@ pub fn find_mismatches(
                     let read2 = parse_cigar_str(&mate, chrom);
 
 
-
-
-                    if white_list.has_overlap(
+                //check if the read is in the whitelist or if no white list was supplied 
+                let analyse = match white_list{
+                    Some(wl) => wl.has_overlap(
                         chrom,
                         min(read1.start() as usize, read2.start() as usize),
                         max(read1.end() as usize, read2.end() as usize),
-                    ) {
+                    ) ,
+                    None => true,
+
+                };
+                
+                if analyse {
                         // println!("Found overlap in whitelist");
 
                         let res;

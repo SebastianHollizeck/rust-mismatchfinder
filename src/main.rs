@@ -6,8 +6,9 @@ use std::{
 };
 
 use clap::{Parser, ValueHint};
+use log::{debug, error, info, warn};
 use mismatchfinder::{
-    bamreader::{self, mismatch},
+    bamreader::{self, filter::germline::GermlineResource, mismatch},
     output,
 };
 use rust_htslib::bam;
@@ -125,22 +126,44 @@ fn main() {
         // user	8m1.104s, 8m3.983s, 7m57.696s, 7m35.625s
         // sys	0m38.480s, 0m42.985s, 0m38.536s, 0m26.196s
         bed = match cli.whitelist_file {
-        Some(file) => bamreader::filter::region::BedObject::lapper_from_bed(file),
-        None => bamreader::filter::region::BedObject::lapper_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
-    };
+            Some(file) => {
+                debug!(
+                    "Parsing bed file {} as white list to lapper object",
+                    file.display()
+                );
+                Some(bamreader::filter::region::BedObject::lapper_from_bed(file))
+            }
+            None => {
+                debug!("No white list bed file detected, including all reads in analysis");
+                None
+            }
+        };
     } else {
         // real	12m18.631s, 11m57.539s, 12m48.091s, 13m0.463s, 12m13.922s
         // user	8m17.179s, 7m54.323s, 8m21.796s, 8m15.832s, 8m2.991s
         // sys	0m52.488s, 0m32.826s, 0m42.453s, 0m47.496s, 0m34.951s
         bed = match cli.whitelist_file {
-            Some(file) => bamreader::filter::region::BedObject::interval_tree_from_bed(file),
-            None => bamreader::filter::region::BedObject::interval_tree_from_bed(PathBuf::from("/Volumes/bioinf/data/reference/dawson_labs/bed_files/GRCh38/GCA_000001405.15_GRCh38_full_analysis_set.100mer.highMappability.bed")),
+            Some(file) => {
+                debug!(
+                    "Parsing bed file {} as white list to lapper object",
+                    file.display()
+                );
+                Some(bamreader::filter::region::BedObject::interval_tree_from_bed(file))
+            }
+            None => {
+                debug!("No white list bed file detected, including all reads in analysis");
+                None
+            }
         };
     }
 
     let mut gnomad = match cli.germline_file {
-        Some(file) => bamreader::filter::germline::GermlineResource::load_echtvars_file(file.to_str().unwrap()),
-        None => bamreader::filter::germline::GermlineResource::load_echtvars_file("/Volumes/bioinf/data/reference/dawson_labs/gnomad/3/echtvar/gnomad.v3.1.2.echtvar.v2.zip"),
+        Some(file) => Some(
+            bamreader::filter::germline::GermlineResource::load_echtvars_file(
+                file.to_str().unwrap(),
+            ),
+        ),
+        None => None,
     };
 
     // let backend = match gnomad.get_backend_mut() {
@@ -395,20 +418,24 @@ fn main() {
                 &bed,
                 &fragment_length_intervals,
             );
-            println!("Found {} mismatches ", mismatches.len());
+            info!("Found {} mismatches ", mismatches.len());
 
-            // we could potentially only annotate the germline status, but then we still have to write about a million germline vars
-            gnomad.filter_germline_cooccurance(&mut mismatches);
+            // if we have a germline resource we filter them out
+            if let Some(ref mut g) = gnomad {
+                // we could potentially only annotate the germline status,
+                // but then we still have to write about a million germline vars
+                g.filter_germline_cooccurance(&mut mismatches);
+            }
 
-            println!("Found {} somatic mismatches", mismatches.len());
+            info!("Found {} somatic mismatches", mismatches.len());
 
             match output::write_mismatches(&mismatches, tsv_file) {
-                Err(_) => println!("Could not write mismatch file"),
+                Err(_) => error!("Could not write mismatch file"),
                 Ok(_) => {}
             }
 
             match output::write_vcf(&mismatches, vcf_file, true, true) {
-                Err(_) => println!("Could not write mismatch file"),
+                Err(_) => error!("Could not write mismatch file"),
                 Ok(_) => {}
             }
         }
