@@ -53,6 +53,11 @@ pub fn find_mismatches(
     let mut last_pos = -1;
 
 
+    // count stats
+    let mut fragments_total =0;
+    let mut fragments_analysed =0;
+    let mut fragments_wrong_length =0;
+
 
     //we create a read cache and set the initial capacity to 10k to reduce the reallocation operations
     let mut read_cache: HashMap<String, Record> = HashMap::with_capacity(10000);
@@ -197,6 +202,9 @@ pub fn find_mismatches(
                     continue;
                 }
 
+                // from here on we think this is a proper fragment that could be in the analysis
+                fragments_total +=1;
+
                 // we check if the reads actually have any changes (edit distance), this contains both mismatches and
                 // insertions or deletions
                 let read1_edit = get_edit_distance(&record);
@@ -216,6 +224,7 @@ pub fn find_mismatches(
                         }
                     }
                     if skip {
+                        fragments_wrong_length +=1;
                         continue;
                     }
 
@@ -244,6 +253,7 @@ pub fn find_mismatches(
                 
                 if analyse {
                         // println!("Found overlap in whitelist");
+                        fragments_analysed +=1;
 
                         let res;
                         if read1.get_read_pos() <= read2.get_read_pos() {
@@ -270,6 +280,7 @@ pub fn find_mismatches(
                         }
                     } else {
                         // println!("Not in whitelist");
+
                     }
                 } else {
                     // println!("No mismatches");
@@ -303,6 +314,7 @@ pub fn find_mismatches(
         }
     }
 
+    info!{"Analysed {fragments_total} fragments and {fragments_wrong_length} were excluded due to wrong length, leaving {fragments_analysed} after whitelist check"};
     return mismatch_store;
 }
 
