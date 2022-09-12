@@ -1,6 +1,6 @@
 use std::{
     fmt::format,
-    fs,
+    fs::{self, File},
     ops::{Range, RangeInclusive},
     path::PathBuf,
 };
@@ -413,6 +413,9 @@ fn main() {
             .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
 
         if !vcf_file.exists() || cli.overwrite {
+            //we create the file here, so that we can easier run the analysis in parallel
+            File::create(&vcf_file).expect("Could not create vcf file");
+
             let mut mismatches = mismatchfinder::bamreader::find_mismatches(
                 &mut bam,
                 &bed,
