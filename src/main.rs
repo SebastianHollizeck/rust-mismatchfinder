@@ -432,10 +432,11 @@ fn main() {
                 info!("Found {} somatic mismatches", mismatches.len());
             }
 
-            match output::write_mismatches(&mismatches, tsv_file) {
-                Err(_) => error!("Could not write mismatch file"),
-                Ok(_) => {}
-            }
+            // make this an option at a later time
+            // match output::write_mismatches(&mismatches, tsv_file) {
+            //     Err(_) => error!("Could not write mismatch file"),
+            //     Ok(_) => {}
+            // }
 
             match output::write_vcf(&mismatches, vcf_file, true, true) {
                 Err(_) => error!("Could not write mismatch file"),
