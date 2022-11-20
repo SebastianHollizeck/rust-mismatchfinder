@@ -8,6 +8,7 @@ use log::{debug, info, warn};
 
 use rust_htslib::bam::{self, record::{Aux}, Read, Record};
 
+
 use crate::bamreader::{
     cigar::{parse_cigar_str},
     fragment::Fragment,
@@ -27,6 +28,14 @@ pub fn find_mismatches(
     bam: &mut bam::Reader,
     white_list: &Option<BedObject>,
     fragment_length_intervals: &Vec<RangeInclusive<i64>>,
+    min_edit_distance_per_read: i8,
+    max_edit_distance_per_read: i8,
+    min_mapping_quality: u8,
+    min_avg_base_quality: f32,
+    min_base_quality: u8,
+    only_overlap: bool,
+    strict_overlap: bool,
+
 ) -> BTreeMap<Mismatch, usize> {
 
         //store all mismatches found and how often they were found (we also know its going to be a big hash)
@@ -66,15 +75,6 @@ pub fn find_mismatches(
     for r in bam.records() {
         let record = r.unwrap();
 
-        let strict = true;
-        let overlap_only = true;
-
-        let min_bq = 65;
-        let min_avg_bq = 25.;
-        let min_mq = 20;
-
-        let min_edit_distance=0;
-        let max_edit_distance=15;
 
         let qname = std::str::from_utf8(record.qname()).unwrap().to_owned();
 
@@ -98,7 +98,7 @@ pub fn find_mismatches(
             || record.is_unmapped() 
             || record.is_duplicate() 
             || record.is_quality_check_failed() 
-            || record.mapq() < min_mq {
+            || record.mapq() < min_mapping_quality {
                 continue;
             }
 
@@ -110,7 +110,7 @@ pub fn find_mismatches(
             last_pos = record.pos();
 
             let edit_dist = get_edit_distance(&record);
-            if  edit_dist > min_edit_distance && edit_dist > max_edit_distance {
+            if  edit_dist >= min_edit_distance_per_read && edit_dist >= max_edit_distance_per_read {
 
                 // we cant really do a fragment size check here, so we have to check the read length instead
                 let frag_size = record.seq_len() as i64;
@@ -127,7 +127,7 @@ pub fn find_mismatches(
                 }
 
                 //then we check for the average base quality of the read
-                if Fragment::average(record.qual()) < min_avg_bq {
+                if Fragment::average(record.qual()) < min_avg_base_quality {
                     continue;
                 }
 
@@ -147,7 +147,7 @@ pub fn find_mismatches(
                 
                 if analyse {
                     let frag = Fragment::make_se_fragment(read, chrom);
-                    let mismatches = frag.get_mismatches(min_bq);
+                    let mismatches = frag.get_mismatches(min_base_quality);
 
                     debug!("Found {} mismatches in fragment", mismatches.len());
 
@@ -186,7 +186,7 @@ pub fn find_mismatches(
                 || mate.is_quality_check_failed()
                 || record.tid() != record.mtid()
                 // we use the average mapping quality of the read as the mapping quality of the fragment
-                || (record.mapq() + mate.mapq()) / 2 < min_mq)
+                || (record.mapq() + mate.mapq()) / 2 < min_mapping_quality)
             {
 
                 // get the chromosome the record is on (because we know they are both on the same)
@@ -211,8 +211,8 @@ pub fn find_mismatches(
                 let read2_edit = get_edit_distance(&mate);
 
 
-
-                if (read1_edit >= min_edit_distance && read1_edit <= max_edit_distance) || (read2_edit >= 0 && read2_edit <= max_edit_distance) {
+                //both reads need to be within the edit distance requirements
+                if (read1_edit >= min_edit_distance_per_read && read1_edit <= max_edit_distance_per_read) || (read2_edit >= min_edit_distance_per_read && read2_edit <= max_edit_distance_per_read) {
                     //now we check if the fragment has the right size
                     let frag_size = record.insert_size().abs();
                     // println!("Found fragment of size {frag_size}");
@@ -230,7 +230,7 @@ pub fn find_mismatches(
 
                     //then we check for the average base quality of the reads
                     if (Fragment::average(record.qual()) + Fragment::average(mate.qual())) / 2.
-                        < min_avg_bq
+                        < min_avg_base_quality
                     {
                         continue;
                     }
@@ -258,14 +258,14 @@ pub fn find_mismatches(
                         let res;
                         if read1.get_read_pos() <= read2.get_read_pos() {
                             res =
-                                Fragment::make_fragment(read1, read2, overlap_only, strict, chrom);
+                                Fragment::make_fragment(read1, read2, only_overlap, strict_overlap, chrom);
                         } else {
                             res =
-                                Fragment::make_fragment(read2, read1, overlap_only, strict, chrom);
+                                Fragment::make_fragment(read2, read1, only_overlap, strict_overlap, chrom);
                         }
 
                         let mismatches = match res {
-                            Some(v) => v.get_mismatches(min_bq),
+                            Some(v) => v.get_mismatches(min_base_quality),
                             None => Vec::new(),
                         };
 

@@ -67,9 +67,9 @@ struct Options {
     #[clap(
         long = "maximum_edit_distance_per_read",
         value_parser,
-        default_value_t = 7
+        default_value_t = 15
     )]
-    max_mismatches_per_read: u8,
+    max_edit_distance_per_read: i8,
 
     /// Mimimum mismatches we require in the read
     #[clap(
@@ -77,7 +77,23 @@ struct Options {
         value_parser,
         default_value_t = 1
     )]
-    min_mismatches_per_read: u8,
+    min_edit_distance_per_read: i8,
+
+    /// Mimimum mapping quality of the read
+    #[clap(long = "minimum_mapping_quality", value_parser, default_value_t = 20)]
+    min_mapping_quality: u8,
+
+    /// Mimimum base quality of the mismatch (BQ is summed for a readpair if reads agree)
+    #[clap(long = "minimum_base_quality", value_parser, default_value_t = 65)]
+    min_base_quality: u8,
+
+    /// Mimimum average base quality of the read
+    #[clap(
+        long = "minimum_average_base_quality",
+        value_parser,
+        default_value_t = 25.
+    )]
+    min_average_base_quality: f32,
 
     /// Length of fragments to be considered in the analysis
     #[clap(long= "fragment_length_intervals", value_parser, action = clap::ArgAction::Append, multiple_values=true, default_values(&["100-150", "250-325"]))]
@@ -86,6 +102,10 @@ struct Options {
     /// only use the overlap of the two reads
     #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
     only_overlaps: bool,
+
+    /// only analyse mismatches if the read pair agree (does not restrict to only overlap)
+    #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
+    strict_overlap: bool,
 
     /// overwrite previous results
     #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
@@ -408,9 +428,9 @@ fn main() {
         let vcf_file = cli
             .output_folder
             .join(format!("{}_bamsites.vcf.gz", base.to_str().unwrap()));
-        let tsv_file = cli
-            .output_folder
-            .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
+        //let tsv_file = cli
+        //    .output_folder
+        //    .join(format!("{}_bamsites.tsv", base.to_str().unwrap()));
 
         if !vcf_file.exists() || cli.overwrite {
             //we create the file here, so that we can easier run the analysis in parallel
@@ -420,6 +440,13 @@ fn main() {
                 &mut bam,
                 &bed,
                 &fragment_length_intervals,
+                cli.min_edit_distance_per_read,
+                cli.max_edit_distance_per_read,
+                cli.min_mapping_quality,
+                cli.min_average_base_quality,
+                cli.min_base_quality,
+                cli.only_overlaps,
+                cli.strict_overlap,
             );
             info!("Found {} mismatches ", mismatches.len());
 
