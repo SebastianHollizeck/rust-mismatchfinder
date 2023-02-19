@@ -40,28 +40,20 @@ struct Options {
     /// Mimimum mapping quality for a read to be considered
     #[clap(
         short = 'q',
-        long = "mininum_mapping_quality",
+        long = "minimum_mapping_quality",
         value_parser,
         default_value_t = 20
     )]
-    min_mq: u8,
+    min_mapping_quality: u8,
 
-    /// Mimimum base quality for a read to be considered
+    /// Mimimum base quality of the mismatch (BQ is summed for a readpair if reads agree)
     #[clap(
         short = 'Q',
         long = "minimum_base_quality",
         value_parser,
-        default_value_t = 25
+        default_value_t = 65
     )]
-    min_bq: u16,
-
-    /// Mimimum average base quality in the whole read for a read to be considered
-    #[clap(
-        long = "minimum_average_basequality",
-        value_parser,
-        default_value_t = 20
-    )]
-    min_avg_bq: u16,
+    min_base_quality: u8,
 
     /// Maximum mismatches we allow in the read
     #[clap(
@@ -78,14 +70,6 @@ struct Options {
         default_value_t = 1
     )]
     min_edit_distance_per_read: i8,
-
-    /// Mimimum mapping quality of the read
-    #[clap(long = "minimum_mapping_quality", value_parser, default_value_t = 20)]
-    min_mapping_quality: u8,
-
-    /// Mimimum base quality of the mismatch (BQ is summed for a readpair if reads agree)
-    #[clap(long = "minimum_base_quality", value_parser, default_value_t = 65)]
-    min_base_quality: u8,
 
     /// Mimimum average base quality of the read
     #[clap(
