@@ -66,6 +66,7 @@ pub fn find_mismatches(
     let mut fragments_total =0;
     let mut fragments_analysed =0;
     let mut fragments_wrong_length =0;
+    let mut fragments_low_base_quality =0;
 
 
     //we create a read cache and set the initial capacity to 10k to reduce the reallocation operations
@@ -123,6 +124,7 @@ pub fn find_mismatches(
                     }
                 }
                 if skip {
+                    debug!("Discarded read due to wrong fragment size");
                     continue;
                 }
 
@@ -159,6 +161,8 @@ pub fn find_mismatches(
                             
                         }
 
+                }else{
+                    debug!("Discarded read due to whitelist check");
                 }
 
             }
@@ -224,6 +228,7 @@ pub fn find_mismatches(
                         }
                     }
                     if skip {
+                        debug!("Discarded read-pair due to wrong fragment size");
                         fragments_wrong_length +=1;
                         continue;
                     }
@@ -232,6 +237,8 @@ pub fn find_mismatches(
                     if (Fragment::average(record.qual()) + Fragment::average(mate.qual())) / 2.
                         < min_avg_base_quality
                     {
+                        debug!("Discarded read-pair due to low average base quality");
+                        fragments_low_base_quality +=1;
                         continue;
                     }
 
@@ -240,53 +247,52 @@ pub fn find_mismatches(
                     let read2 = parse_cigar_str(&mate, chrom);
 
 
-                //check if the read is in the whitelist or if no white list was supplied 
-                let analyse = match white_list{
-                    Some(wl) => wl.has_overlap(
-                        chrom,
-                        min(read1.start() as usize, read2.start() as usize),
-                        max(read1.end() as usize, read2.end() as usize),
-                    ) ,
-                    None => true,
+                    //check if the read is in the whitelist or if no white list was supplied 
+                    let analyse = match white_list{
+                        Some(wl) => wl.has_overlap(
+                            chrom,
+                            min(read1.start() as usize, read2.start() as usize),
+                            max(read1.end() as usize, read2.end() as usize),
+                        ) ,
+                        None => true,
 
-                };
-                
-                if analyse {
-                        // println!("Found overlap in whitelist");
-                        fragments_analysed +=1;
+                    };
+                    
+                    if analyse {
+                            debug!("Analysing read(pair)");
+                            fragments_analysed +=1;
 
-                        let res;
-                        if read1.get_read_pos() <= read2.get_read_pos() {
-                            res =
-                                Fragment::make_fragment(read1, read2, only_overlap, strict_overlap, chrom);
-                        } else {
-                            res =
-                                Fragment::make_fragment(read2, read1, only_overlap, strict_overlap, chrom);
-                        }
+                            let res;
+                            if read1.get_read_pos() <= read2.get_read_pos() {
+                                res =
+                                    Fragment::make_fragment(read1, read2, only_overlap, strict_overlap, chrom);
+                            } else {
+                                res =
+                                    Fragment::make_fragment(read2, read1, only_overlap, strict_overlap, chrom);
+                            }
 
-                        let mismatches = match res {
-                            Some(v) => v.get_mismatches(min_base_quality),
-                            None => Vec::new(),
-                        };
+                            let mismatches = match res {
+                                Some(v) => v.get_mismatches(min_base_quality),
+                                None => Vec::new(),
+                            };
 
-                        debug!("Found {} mismatches in fragment", mismatches.len());
+                            debug!("Found {} mismatches in fragment", mismatches.len());
 
-                        for mm in mismatches {
-                            // add the mismatch to the storage if it wasnt already
-                            let val = mismatch_store.entry(mm).or_insert(0);
-                            //and add one to the count
-                            *val +=1;
-                            
-                        }
+                            for mm in mismatches {
+                                // add the mismatch to the storage if it wasnt already
+                                let val = mismatch_store.entry(mm).or_insert(0);
+                                //and add one to the count
+                                *val +=1;
+                                
+                            }
                     } else {
-                        // println!("Not in whitelist");
-
+                                debug!("Discarded read pair due to whitelist check");
                     }
                 } else {
-                    // println!("No mismatches");
+                    debug!("Discarded read pair due to wrong edit distance");
                 }
             } else {
-                // println!("Low quality");
+                debug!("Discarded read pair due to mapping quality filters");
             }
 
             debug!("Done with read {}", &qname);
@@ -314,7 +320,7 @@ pub fn find_mismatches(
         }
     }
 
-    info!{"Analysed {fragments_total} fragments and {fragments_wrong_length} were excluded due to wrong length, leaving {fragments_analysed} after whitelist check"};
+    info!{"Analysed {fragments_total} fragments and {fragments_wrong_length} were excluded due to wrong length, leaving {fragments_analysed} after whitelist and base quality (excluded: {fragments_low_base_quality}) check"};
     return mismatch_store;
 }
 
