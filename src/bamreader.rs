@@ -105,6 +105,14 @@ pub fn find_mismatches(
 
             debug!("Working on single end read: {} ", std::str::from_utf8(record.qname()).unwrap());
 
+            //if the read has any additional mapping locations, we cant really trust the alignment as much
+            if let Ok(_) = record.aux(b"XA") {
+                continue;
+            }
+
+            // from here on we think this is a proper fragment that could be in the analysis
+            fragments_total += 1;    
+
             // get the chromosome the record is on
             let chrom = tid_map.get(&record.tid()).unwrap();
             last_chr = chrom;
@@ -125,11 +133,13 @@ pub fn find_mismatches(
                 }
                 if skip {
                     debug!("Discarded read due to wrong fragment size");
+                    fragments_wrong_length += 1; 
                     continue;
                 }
 
                 //then we check for the average base quality of the read
                 if Fragment::average(record.qual()) < min_avg_base_quality {
+                    fragments_low_base_quality += 1;
                     continue;
                 }
 
@@ -148,6 +158,8 @@ pub fn find_mismatches(
                 };
                 
                 if analyse {
+                    fragments_analysed += 1;
+
                     let frag = Fragment::make_se_fragment(read, chrom);
                     let mismatches = frag.get_mismatches(min_base_quality);
 
@@ -207,7 +219,7 @@ pub fn find_mismatches(
                 }
 
                 // from here on we think this is a proper fragment that could be in the analysis
-                fragments_total +=1;
+                fragments_total += 1;
 
                 // we check if the reads actually have any changes (edit distance), this contains both mismatches and
                 // insertions or deletions
