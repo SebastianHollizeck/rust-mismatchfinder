@@ -80,15 +80,15 @@ struct Options {
     min_average_base_quality: f32,
 
     /// Length of fragments to be considered in the analysis
-    #[clap(long= "fragment_length_intervals", value_parser, action = clap::ArgAction::Append, multiple_values=true, default_values(&["100-150", "250-325"]))]
+    #[clap(long = "fragment_length_intervals", value_parser, action = clap::ArgAction::Append, multiple_values=true, default_values(&["100-150", "250-325"]))]
     fragment_length_intervals: Vec<String>,
 
     /// only use the overlap of the two reads
-    #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
+    #[clap(long = "only_overlaps", value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
     only_overlaps: bool,
 
     /// only analyse mismatches if the read pair agree (does not restrict to only overlap)
-    #[clap(long, value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
+    #[clap(long = "strict_overlaps", value_parser, default_value_t = false , action = clap::ArgAction::SetTrue)]
     strict_overlap: bool,
 
     /// overwrite previous results
