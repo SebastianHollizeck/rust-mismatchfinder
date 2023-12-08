@@ -1,14 +1,13 @@
 use std::{
-    fmt::format,
     fs::{self, File},
-    ops::{Range, RangeInclusive},
+    ops::RangeInclusive,
     path::PathBuf,
 };
 
 use clap::{Parser, ValueHint};
-use log::{debug, error, info, warn};
+use log::{debug, error, info};
 use mismatchfinder::{
-    bamreader::{self, filter::germline::GermlineResource, mismatch},
+    bamreader::self,
     output,
 };
 use rust_htslib::bam;
