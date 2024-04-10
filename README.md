@@ -1,3 +1,6 @@
+# WARNING: THIS PROJECT HAS BEEN MIGRATED TO https://atlassian.petermac.org.au/bitbucket/projects/SJDAW/repos/mismatchfinder AND IS NO LONGER MAINTAINED AT THIS LOCATION.
+
+
 # MisMatchFinder
 The MisMatchFinder algorithm identifies mismatches within reads compared to the reference genome and filters background noise unrelated to somatic mutations through:
  * the use of high thresholds for mapping and base quality,
